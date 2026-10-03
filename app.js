@@ -33,6 +33,19 @@ const state = {
 
 const app = document.getElementById("app");
 
+/* Load webfonts without blocking first paint, and without an inline handler,
+   so a strict Content-Security-Policy can be enforced. */
+(function loadFonts(){
+  try{
+    var l = document.createElement("link");
+    l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap";
+    l.media = "print";
+    l.onload = function(){ l.media = "all"; };
+    document.head.appendChild(l);
+  }catch(e){}
+})();
+
 /* ---------------- icons (inline SVG, no emoji) ---------------- */
 const ICONS = {
   mail: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7.5 8 5.5 8-5.5"/>',
@@ -371,6 +384,7 @@ function rateSection(){
                 <input type="hidden" name="stars" id="rateStars" value="${pick}">
                 ${picker}
                 <div class="field"><label>Add a short comment (optional)</label><textarea name="comment" placeholder="What did you think?"></textarea></div>
+                <div class="hp" aria-hidden="true"><label>Leave this field empty</label><input name="website" tabindex="-1" autocomplete="off"></div>
                 <div id="rateMsg"></div>
                 <button class="btn btn-primary" type="submit">Submit rating</button>
               </form>`}
@@ -473,6 +487,7 @@ function homeView(){
                 <input name="project_ref" placeholder="e.g. Aurora Analytics Dashboard" value="${esc(state.contactRef)}">
               </div>
               <div class="field"><label>Message</label><textarea name="message" required placeholder="Tell us what you would like to build."></textarea></div>
+              <div class="hp" aria-hidden="true"><label>Leave this field empty</label><input name="website" tabindex="-1" autocomplete="off"></div>
               <button class="btn btn-primary" type="submit">Send message</button>
             </form>
           </div>
@@ -759,7 +774,7 @@ function openProjectModal(project){
   })();
   root.innerHTML = `
   <div class="modal-back" data-action="close-modal-bg">
-    <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal">
       <h3>${project?"Edit project":"Add new project"}</h3>
       <div id="projMsg"></div>
       <form data-form="project" data-id="${esc(p.id||"")}">
@@ -935,6 +950,13 @@ app.addEventListener("submit", async (e) => {
   e.preventDefault();
   const kind = form.dataset.form;
   const fd = new FormData(form);
+
+  /* Honeypot: real people never see or fill this field. Bots do. */
+  if((fd.get("website")||"").trim()){
+    if(kind === "contact"){ msg("contactMsg","Thank you. Your message has been sent and we will get back to you soon.","ok"); }
+    if(kind === "rating"){ state.ratingJustSubmitted = true; render(); }
+    return;
+  }
 
   if(kind === "contact"){
     const body = {
