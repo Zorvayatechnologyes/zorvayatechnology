@@ -232,7 +232,7 @@ function footer(){
   return `
   <footer>
     <div class="wrap foot">
-      <div>&copy; ${new Date().getFullYear()} ${esc(s.full_name || "Zorvaya Technology")}. All rights reserved.</div>
+      <div><span class="fbrand">${esc(s.full_name || "Zorvaya Technology")}</span> &copy; ${new Date().getFullYear()}. All rights reserved.</div>
       <div><a href="#/admin" style="color:var(--muted)">Admin</a></div>
     </div>
   </footer>`;
@@ -256,7 +256,7 @@ function projectCard(p){
     ? `<img src="${esc(p.cover_image_url)}" alt="${esc(p.title)}" loading="lazy">`
     : `<div class="ph">${esc(p.title)}</div>`;
   return `
-  <article class="card" data-action="open-project" data-slug="${esc(p.slug||p.id)}">
+  <article class="card${p.featured?" big":""}" data-action="open-project" data-slug="${esc(p.slug||p.id)}">
     <div class="thumb">${thumb}${p.featured?`<span class="badge">Featured</span>`:""}</div>
     <div class="card-body">
       <h3>${esc(p.title)}</h3>
@@ -264,6 +264,12 @@ function projectCard(p){
       <div class="tags">${tags}</div>
     </div>
   </article>`;
+}
+function marquee(){
+  const words = ["Web design","Branding","Product","Motion","Development","UI / UX"];
+  const star = `<svg class="mstar" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c.6 4.8 2.6 6.8 7.4 7.4-4.8.6-6.8 2.6-7.4 7.4-.6-4.8-2.6-6.8-7.4-7.4C9.4 8.8 11.4 6.8 12 2z"/></svg>`;
+  const seq = words.map(w=>`<span>${w}</span>${star}`).join("");
+  return `<div class="marquee" aria-hidden="true"><div class="marquee-track">${seq}${seq}</div></div>`;
 }
 function homeView(){
   const s = state.settings || {};
@@ -280,18 +286,22 @@ function homeView(){
     <section class="hero">
       <div class="wrap hero-grid">
         <div>
-          <span class="eyebrow">Available for new projects</span>
-          <h1><span class="grad">${esc(s.full_name || "Zorvaya Technology")}</span></h1>
+          <div class="stickers">
+            <span class="sticker">Open for new projects</span>
+            <span class="sticker lime">Design + Code</span>
+          </div>
+          <h1 class="display"><span class="grad">${esc(s.full_name || "Zorvaya Technology")}</span></h1>
           <p class="role">${esc(s.role_title || "")}</p>
           <p class="lead">${esc(s.tagline || "We design and build digital products for the web.")}</p>
           <div class="hero-cta">
-            <a class="btn btn-primary" href="#/#work">View our work</a>
+            <a class="btn btn-primary" href="#/#work">See the work</a>
             <a class="btn btn-ghost" href="#/contact">Start a project</a>
           </div>
         </div>
-        <div class="avatar-card">${avatar}</div>
+        <div class="avatar-card"><div class="ring"></div>${avatar}</div>
       </div>
     </section>
+    ${marquee()}
 
     <section id="about">
       <div class="wrap">
