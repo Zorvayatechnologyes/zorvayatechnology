@@ -295,7 +295,6 @@ function mobileNav(){
     ${item("home","Home","#/","grid")}
     ${item("work","Work","#/#work","layers")}
     ${item("contact","Contact","#/contact","mail")}
-    ${item("admin","Admin","#/admin","gear")}
   </nav>`;
 }
 function footer(){
@@ -304,7 +303,6 @@ function footer(){
   <footer>
     <div class="wrap foot">
       <div><span class="fbrand">${esc(s.full_name || "Zorvaya Technology")}</span> &copy; ${new Date().getFullYear()}. All rights reserved.</div>
-      <div><a href="#/admin" style="color:var(--muted)">Admin</a></div>
     </div>
   </footer>`;
 }
@@ -722,25 +720,20 @@ function adminSettings(){
   </div>`;
 }
 function loginView(){
-  const signup = state.loginMode === "signup";
   return `
   ${header()}
   <main class="wrap login-wrap">
     <div class="panel">
-      <div class="kicker">Admin</div>
-      <h2 style="margin:0 0 6px;font-size:1.5rem">${signup?"Create admin account":"Sign in"}</h2>
-      <p class="note" style="margin:0 0 20px">${signup?"Use the email you want as your admin login.":"Only the admin can add or remove projects."}</p>
+      <div class="kicker">Private</div>
+      <h2 style="margin:0 0 6px;font-size:1.5rem">Sign in</h2>
+      <p class="note" style="margin:0 0 20px">This area is for the site owner only.</p>
       ${flashBanner()}
       <div id="loginMsg"></div>
       <form data-form="login">
         <div class="field"><label>Email</label><input name="email" type="email" required autocomplete="username"></div>
-        <div class="field"><label>Password</label><input name="password" type="password" required minlength="6" autocomplete="${signup?"new-password":"current-password"}"></div>
-        <button class="btn btn-primary" type="submit" style="width:100%">${signup?"Create account":"Sign in"}</button>
+        <div class="field"><label>Password</label><input name="password" type="password" required minlength="6" autocomplete="current-password"></div>
+        <button class="btn btn-primary" type="submit" style="width:100%">Sign in</button>
       </form>
-      <p class="note" style="margin-top:16px;text-align:center">
-        ${signup?`Already have an account? <a href="#" data-action="login-mode" data-mode="signin" style="color:var(--accent)">Sign in</a>`
-                :`First time? <a href="#" data-action="login-mode" data-mode="signup" style="color:var(--accent)">Create your admin account</a>`}
-      </p>
     </div>
   </main>
   ${footer()}`;
