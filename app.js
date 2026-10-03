@@ -20,7 +20,7 @@ const state = {
   projects: [],
   isAdmin: false,
   filter: "All",
-  adminTab: "projects",
+  adminTab: "overview",
   loginMode: "signin",
   contactRef: "",
   pendingMessages: [],
@@ -49,6 +49,10 @@ const ICONS = {
   menu: '<path d="M3.5 7h17M3.5 12h17M3.5 17h17"/>',
   plus: '<path d="M12 5.5v13M5.5 12h13"/>',
   check: '<path d="m4 12.5 5 5L20 6.5"/>',
+  grid: '<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>',
+  layers: '<path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/>',
+  gear: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/>',
+  star: '<path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z"/>',
 };
 function icon(name, cls){
   return `<svg class="${cls||"ico"}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||""}</svg>`;
@@ -472,27 +476,53 @@ function adminView(){
   if(!state.isAdmin) return notAdminView();
   const s = state.settings || {};
   const unread = (state.pendingMessages||[]).filter(m=>!m.is_read).length;
+  const nav = [
+    ["overview","Overview","grid",0],
+    ["projects","Projects","layers",state.projects.length],
+    ["messages","Messages","mail",unread],
+    ["ratings","Ratings","star",(state.ratings||[]).length],
+    ["settings","Settings","gear",0],
+  ];
+  const meta = {
+    overview:["Overview","A quick look at everything on your site."],
+    projects:["Projects","Add, edit or remove the work shown on your site."],
+    messages:["Messages","Enquiries sent through the contact form."],
+    ratings:["Ratings","How visitors rated the site."],
+    settings:["Site settings","Your name, contact details and links."],
+  }[state.adminTab] || ["Overview",""];
   return `
   ${header()}
-  <main class="wrap" style="padding:36px 0 64px">
-    <div class="admin-head">
-      <div>
-        <div class="kicker">Dashboard</div>
-        <h2 style="margin:0;font-size:1.6rem">Welcome back, ${esc((s.full_name||state.user.email).split(" ")[0])}</h2>
-      </div>
-      <div class="row-actions">
-        <a class="btn btn-ghost btn-sm" href="#/">View site</a>
-        <button class="btn btn-ghost btn-sm" data-action="logout">Log out</button>
-      </div>
+  <main class="wrap admin-wrap">
+    <div class="admin-shell">
+      <aside class="admin-side">
+        <div class="admin-side-brand">
+          <img src="./logo.png" alt="">
+          <div>
+            <div class="asb-name">${esc(s.full_name || "Zorvaya Technology")}</div>
+            <div class="asb-sub">Admin dashboard</div>
+          </div>
+        </div>
+        <nav class="admin-nav">
+          ${nav.map(([id,label,ic,count])=>`
+            <button class="anav ${state.adminTab===id?"active":""}" data-action="admin-tab" data-tab="${id}">
+              ${icon(ic)}<span>${label}</span>${count?`<span class="anav-count">${count}</span>`:""}
+            </button>`).join("")}
+        </nav>
+        <div class="admin-side-foot">
+          <a class="btn btn-ghost btn-sm" href="#/">View site</a>
+          <button class="btn btn-ghost btn-sm" data-action="logout">Log out</button>
+        </div>
+      </aside>
+      <section class="admin-main">
+        <div class="admin-main-head">
+          <div class="kicker">Dashboard</div>
+          <h1>${esc(meta[0])}</h1>
+          <p class="note">${esc(meta[1])}</p>
+        </div>
+        ${flashBanner()}
+        <div id="adminBody">${adminTabBody()}</div>
+      </section>
     </div>
-    <div class="tabs">
-      <button class="tab ${state.adminTab==="projects"?"active":""}" data-action="admin-tab" data-tab="projects">Projects</button>
-      <button class="tab ${state.adminTab==="messages"?"active":""}" data-action="admin-tab" data-tab="messages">Messages${unread?` (${unread})`:""}</button>
-      <button class="tab ${state.adminTab==="ratings"?"active":""}" data-action="admin-tab" data-tab="ratings">Ratings</button>
-      <button class="tab ${state.adminTab==="settings"?"active":""}" data-action="admin-tab" data-tab="settings">Site settings</button>
-    </div>
-    ${flashBanner()}
-    <div id="adminBody">${adminTabBody()}</div>
   </main>
   ${footer()}`;
 }
@@ -500,7 +530,52 @@ function adminTabBody(){
   if(state.adminTab === "projects") return adminProjects();
   if(state.adminTab === "messages") return adminMessages();
   if(state.adminTab === "ratings") return adminRatings();
-  return adminSettings();
+  if(state.adminTab === "settings") return adminSettings();
+  return adminOverview();
+}
+function adminOverview(){
+  const { avg, count } = ratingStats();
+  const msgs = state.pendingMessages || [];
+  const unread = msgs.filter(m=>!m.is_read).length;
+  const featured = state.projects.filter(p=>p.featured).length;
+  const recentMsgs = msgs.slice(0,3);
+  const recentRatings = (state.ratings||[]).slice(0,3);
+  return `
+    <div class="stat-row">
+      <div class="stat"><div class="n">${state.projects.length}</div><div class="l">Projects</div></div>
+      <div class="stat"><div class="n">${featured}</div><div class="l">Featured</div></div>
+      <div class="stat"><div class="n">${msgs.length}</div><div class="l">Messages</div></div>
+      <div class="stat"><div class="n">${unread}</div><div class="l">Unread</div></div>
+      <div class="stat"><div class="n">${count ? avg.toFixed(1) : "-"}</div><div class="l">Avg rating</div></div>
+      <div class="stat"><div class="n">${count}</div><div class="l">Ratings</div></div>
+    </div>
+    <div class="admin-cols">
+      <div class="panel">
+        <h3 class="panel-title">Quick actions</h3>
+        <div class="quick">
+          <button class="btn btn-primary" data-action="new-project">${icon("plus")} Add new project</button>
+          <button class="btn btn-ghost" data-action="admin-tab" data-tab="messages">${icon("mail")} Read messages</button>
+          <button class="btn btn-ghost" data-action="admin-tab" data-tab="ratings">${icon("star")} View ratings</button>
+          <button class="btn btn-ghost" data-action="admin-tab" data-tab="settings">${icon("gear")} Site settings</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3 class="panel-title">Recent messages</h3>
+        ${recentMsgs.length ? recentMsgs.map(m=>`
+          <div class="mini">
+            <div class="mini-top"><b>${esc(m.name)}</b><span class="sub">${fmtDate(m.created_at)}</span></div>
+            <div class="mini-sub">${esc(m.email)}</div>
+          </div>`).join("") : `<p class="note">No messages yet.</p>`}
+      </div>
+      <div class="panel">
+        <h3 class="panel-title">Recent ratings</h3>
+        ${recentRatings.length ? recentRatings.map(r=>`
+          <div class="mini">
+            <div class="mini-top"><span class="stars-static">${starsRow(r.stars)}</span><span class="sub">${fmtDate(r.created_at)}</span></div>
+            ${r.comment?`<div class="mini-sub">${esc(r.comment)}</div>`:""}
+          </div>`).join("") : `<p class="note">No ratings yet.</p>`}
+      </div>
+    </div>`;
 }
 function adminProjects(){
   const rows = state.projects.map(p => `
@@ -837,7 +912,7 @@ app.addEventListener("submit", async (e) => {
         await signIn(email, password);
       }
       await checkAdmin(); await loadSettings(); await loadProjects();
-      state.adminTab = "projects";
+      state.adminTab = "overview";
       render();
     }catch(err){ msg("loginMsg", err.message, "err"); }
     return;
