@@ -213,7 +213,7 @@ function header(){
   return `
   <header class="site-header">
     <div class="wrap nav">
-      <a class="brand" href="#/"><span class="dot"></span>${esc(s.full_name || "Zorvaya Technology")}</a>
+      <a class="brand" href="#/"><img class="brand-logo" src="./logo.png" alt=""><span>${esc(s.full_name || "Zorvaya Technology")}</span></a>
       <nav class="nav-links" id="navLinks">
         <a href="#/">Home</a>
         <a href="#/#about">About</a>
@@ -272,9 +272,7 @@ function homeView(){
   const shown = state.filter === "All" ? state.projects
     : state.projects.filter(p => (p.tags||[]).includes(state.filter));
 
-  const avatar = s.avatar_url
-    ? `<img src="${esc(s.avatar_url)}" alt="${esc(s.full_name||"")}">`
-    : `<div class="initials">${esc(initials(s.full_name))}</div>`;
+  const avatar = `<img src="${esc(s.avatar_url || "logo.png")}" alt="${esc(s.full_name||"Zorvaya Technology")}">`;
 
   return `
   ${header()}
