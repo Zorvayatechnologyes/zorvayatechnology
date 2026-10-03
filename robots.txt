@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://anubhav0808-uv.github.io/portfolio/sitemap.xml
+Sitemap: https://anubhav0808-uv.github.io/zorvayatechnology/sitemap.xml
