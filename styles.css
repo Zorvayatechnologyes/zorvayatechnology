@@ -397,3 +397,69 @@ html[data-theme="dark"] .pill.unread{color:#ff9d9d}
 .mini-top .sub{color:var(--muted);font-size:.8rem;flex:none}
 .mini-sub{color:var(--muted);font-size:.86rem;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mini .stars-static .star{width:18px;height:18px}
+
+/* =========================================================
+   Device-aware layout
+   Phones get an app-like shell; laptops keep the full layout.
+   ========================================================= */
+.mobile-nav{display:none}
+.swipe-hint{display:none}
+.carousel{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:22px}
+
+/* ---------- phone ---------- */
+html[data-device="mobile"] body{padding-bottom:94px}
+html[data-device="mobile"] .nav-links,
+html[data-device="mobile"] .menu-toggle{display:none!important}
+html[data-device="mobile"] .nav{height:60px}
+
+html[data-device="mobile"] .mobile-nav{
+  display:flex;position:fixed;left:12px;right:12px;
+  bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:60;gap:4px;padding:8px;
+  border-radius:24px;background:color-mix(in srgb, var(--card) 90%, transparent);border:1px solid var(--line);
+  backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%);
+  box-shadow:var(--shadow-lg);
+}
+html[data-device="mobile"] .mnav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;border-radius:18px;
+  color:var(--muted);font-family:var(--font-display);font-size:.64rem;font-weight:700;
+  letter-spacing:.04em;text-transform:uppercase;transition:.16s;
+}
+html[data-device="mobile"] .mnav-item .ico{width:21px;height:21px}
+html[data-device="mobile"] .mnav-item.active{
+  color:#fff;background:linear-gradient(100deg,var(--g1),var(--g2));box-shadow:var(--glow);
+}
+
+/* hero: stacked, centred, logo first */
+html[data-device="mobile"] .hero{padding:40px 0 16px}
+html[data-device="mobile"] .hero-grid{grid-template-columns:1fr;gap:24px;text-align:center}
+html[data-device="mobile"] .stickers,
+html[data-device="mobile"] .hero-cta{justify-content:center}
+html[data-device="mobile"] .hero p.lead{margin-left:auto;margin-right:auto}
+html[data-device="mobile"] .avatar-card{max-width:190px;margin:0 auto;order:-1}
+html[data-device="mobile"] .display{font-size:clamp(2.1rem,11vw,3rem)}
+
+/* projects: horizontal swipe carousel */
+html[data-device="mobile"] .carousel{
+  display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
+  margin:0 -22px;padding:4px 22px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+html[data-device="mobile"] .carousel::-webkit-scrollbar{display:none}
+html[data-device="mobile"] .carousel .card{flex:0 0 80%;scroll-snap-align:center}
+html[data-device="mobile"] .carousel .card.big{grid-column:auto}
+html[data-device="mobile"] .carousel .card .thumb{aspect-ratio:16/10}
+html[data-device="mobile"] .swipe-hint{
+  display:block;text-align:center;color:var(--muted);font-size:.82rem;margin:8px 0 0;
+  font-family:var(--font-display);letter-spacing:.04em;
+}
+
+/* calmer motion + bigger tap targets on phones */
+html[data-device="mobile"] body::before{animation:none;filter:blur(50px)}
+html[data-device="mobile"] .avatar-card{animation:none}
+html[data-device="mobile"] .marquee-track{animation-duration:22s}
+html[data-device="mobile"] .btn{padding:14px 22px}
+html[data-device="mobile"] section{padding:44px 0}
+html[data-device="mobile"] .section-head h2{font-size:1.6rem}
+html[data-device="mobile"] .contact-grid{gap:22px}
+html[data-device="mobile"] .admin-shell{gap:16px}
+html[data-device="mobile"] .admin-side{position:static;border-radius:22px;padding:14px}
+html[data-device="mobile"] .modal{border-radius:22px;padding:22px}
