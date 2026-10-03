@@ -86,15 +86,31 @@ function parseList(v){
 }
 
 /* ---------------- REST / Auth ---------------- */
+async function fetchWithTimeout(url, opts = {}, timeout = 9000){
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), timeout);
+  try{
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+function netError(e){
+  return (e && e.name === "AbortError") ? "The request timed out." : "Could not reach the server.";
+}
+
 async function api(path, opts = {}){
-  const { method = "GET", body, prefer, token } = opts;
+  const { method = "GET", body, prefer, token, timeout = 9000 } = opts;
   const headers = { apikey: SUPABASE_ANON, "Content-Type": "application/json" };
   const t = token || (state.session && state.session.access_token) || SUPABASE_ANON;
   headers["Authorization"] = "Bearer " + t;
   if(prefer) headers["Prefer"] = prefer;
-  const res = await fetch(REST + path, {
-    method, headers, body: body ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try{
+    res = await fetchWithTimeout(REST + path, {
+      method, headers, body: body ? JSON.stringify(body) : undefined,
+    }, timeout);
+  }catch(e){ throw new Error(netError(e)); }
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch(e){ data = text; }
@@ -107,7 +123,10 @@ async function api(path, opts = {}){
 
 async function authReq(path, opts = {}){
   const headers = { apikey: SUPABASE_ANON, "Content-Type": "application/json", ...(opts.headers||{}) };
-  const res = await fetch(AUTH + path, { ...opts, headers });
+  let res;
+  try{
+    res = await fetchWithTimeout(AUTH + path, { ...opts, headers }, 9000);
+  }catch(e){ throw new Error(netError(e)); }
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch(e){ data = text; }
@@ -761,6 +780,35 @@ function msg(elId, text, type){
   if(el) el.innerHTML = `<div class="alert ${type}">${esc(text)}</div>`;
 }
 
+/* ---------------- SEO / head ---------------- */
+function absUrl(u){
+  if(!u) return "";
+  if(/^https?:/i.test(u)) return u;
+  try{ return new URL(u, location.href).href; }catch(e){ return u; }
+}
+function setMeta(attr, key, val){
+  if(!val) return;
+  let el = document.head.querySelector('meta[' + attr + '="' + key + '"]');
+  if(!el){ el = document.createElement("meta"); el.setAttribute(attr, key); document.head.appendChild(el); }
+  el.setAttribute("content", val);
+}
+function updateMeta(project){
+  const s = state.settings || {};
+  const name = s.full_name || "Zorvaya Technology";
+  const siteDesc = s.tagline || "We design and build digital products for the web.";
+  const title = project ? (project.title + " | " + name) : (name + " | Web Design & Development Studio");
+  const desc = project ? (project.summary || siteDesc) : siteDesc;
+  document.title = title;
+  setMeta("name", "description", desc);
+  setMeta("property", "og:title", title);
+  setMeta("property", "og:description", desc);
+  setMeta("name", "twitter:title", title);
+  setMeta("name", "twitter:description", desc);
+  const img = absUrl((project && project.cover_image_url) || "logo.png");
+  setMeta("property", "og:image", img);
+  setMeta("name", "twitter:image", img);
+}
+
 /* ---------------- router ---------------- */
 async function render(){
   const hash = location.hash || "#/";
@@ -777,7 +825,9 @@ async function render(){
   }
   app.innerHTML = html;
   state.flash = null;
-  document.title = (state.settings && state.settings.full_name ? state.settings.full_name : "Portfolio");
+  const slug = hash.startsWith("#/p/") ? decodeURIComponent(hash.slice(4)) : "";
+  const proj = slug ? state.projects.find(x => x.slug === slug || x.id === slug) : null;
+  updateMeta(proj);
   const sec = hash.match(/^#\/#(.+)$/);
   if(hash === "#/contact"){ setTimeout(()=>document.getElementById("contact")?.scrollIntoView({behavior:"smooth"}), 80); }
   else if(sec){ setTimeout(()=>document.getElementById(sec[1])?.scrollIntoView({behavior:"smooth"}), 80); }
@@ -977,8 +1027,11 @@ window.addEventListener("hashchange", render);
 (async function boot(){
   applyTheme();
   loadSessionFromStorage();
-  await Promise.all([loadSettings(), loadProjects(), loadRatings()]);
-  if(state.session){ await ensureSession(); if(state.session && state.session.access_token){ await checkAdmin(); } }
   state.loaded = true;
-  render();
+  render();  /* paint immediately - never wait on the network */
+  try{ await Promise.all([loadSettings(), loadProjects(), loadRatings()]); }catch(e){}
+  if(state.session){
+    try{ await ensureSession(); if(state.session && state.session.access_token){ await checkAdmin(); } }catch(e){}
+  }
+  render();  /* repaint once data (or a failure) arrives */
 })();
