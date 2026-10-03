@@ -1,6 +1,8 @@
 /* =========================================================
-   Portfolio site  —  vanilla JS + Supabase (REST + Auth)
+   Zorvaya Technology  - portfolio site
+   vanilla JS + Supabase (REST + Auth)
    Public site + admin dashboard (admin-only writes via RLS)
+   No emoji anywhere: all icons are inline SVG.
    ========================================================= */
 
 const SUPABASE_URL  = "https://itpqcwaniuakbafupkwz.supabase.co";
@@ -21,11 +23,33 @@ const state = {
   adminTab: "projects",
   loginMode: "signin",
   contactRef: "",
+  pendingMessages: [],
   loaded: false,
   flash: null,
 };
 
 const app = document.getElementById("app");
+
+/* ---------------- icons (inline SVG, no emoji) ---------------- */
+const ICONS = {
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7.5 8 5.5 8-5.5"/>',
+  phone: '<path d="M6 3.5h3l1.4 3.7-2 1.4a12 12 0 0 0 6 6l1.4-2 3.7 1.4v3a1.9 1.9 0 0 1-2 1.9A16 16 0 0 1 4.1 5.5 1.9 1.9 0 0 1 6 3.5z"/>',
+  whatsapp: '<path d="M12 3.5a8.5 8.5 0 0 0-7.3 12.8L3.5 20.5l4.3-1.1A8.5 8.5 0 1 0 12 3.5z"/><path d="M8.7 8.3c0 3.7 2.8 6.5 6.5 6.5.8 0 1.3-.8 1.3-1.3l-1.8-.9-.9.9a4.6 4.6 0 0 1-2.2-2.2l.9-.9-.9-1.8c-.5 0-1.3.5-1.3 1.3z"/>',
+  github: '<path d="M9 19.5c-4 1.4-4-2.4-6-3m12 5v-3.4c0-.9.1-1.3-.5-1.9 2.2-.3 4.4-1.1 4.4-4.9A3.8 3.8 0 0 0 18 7.4 3.6 3.6 0 0 0 17.9 4s-1.1-.3-3.4 1.3a11.7 11.7 0 0 0-6 0C6.2 3.7 5.1 4 5.1 4a3.6 3.6 0 0 0-.1 3.4A3.8 3.8 0 0 0 3.6 9.9c0 3.8 2.2 4.6 4.4 4.9-.6.6-.6 1.2-.5 1.9V21"/>',
+  linkedin: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 11v6M8 7.9v.01M12 17v-3.4a2 2 0 0 1 4 0V17"/>',
+  instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="3.8"/><path d="M17.4 6.6v.01"/>',
+  twitter: '<path d="M4 4.5l6.8 8.2L4.5 19.5h2.2l5.1-5.7 4.6 5.7H20l-7-8.6L19.3 4.5h-2.2l-4.6 5.1L8.2 4.5z"/>',
+  external: '<path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M19 13.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4.5"/>',
+  arrowLeft: '<path d="M19 12H5"/><path d="m11 18-6-6 6-6"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4 5.2 18.8"/>',
+  moon: '<path d="M20.5 13.5A8.5 8.5 0 0 1 10.5 3.5a7 7 0 1 0 10 10z"/>',
+  menu: '<path d="M3.5 7h17M3.5 12h17M3.5 17h17"/>',
+  plus: '<path d="M12 5.5v13M5.5 12h13"/>',
+  check: '<path d="m4 12.5 5 5L20 6.5"/>',
+};
+function icon(name, cls){
+  return `<svg class="${cls||"ico"}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||""}</svg>`;
+}
 
 /* ---------------- small helpers ---------------- */
 function esc(s){
@@ -44,7 +68,7 @@ function fmtDate(d){
 }
 function initials(name){
   const p = String(name||"").trim().split(/\s+/).filter(Boolean);
-  if(!p.length) return "ME";
+  if(!p.length) return "ZT";
   return (p[0][0] + (p[1]?p[1][0]:"")).toUpperCase();
 }
 function waLink(num){
@@ -160,6 +184,12 @@ async function checkAdmin(){
     state.isAdmin = Array.isArray(r) && r.length > 0;
   }catch(e){ state.isAdmin = false; }
 }
+async function loadMessages(){
+  if(!state.isAdmin) return;
+  try{
+    state.pendingMessages = await api("/messages?select=*&order=created_at.desc") || [];
+  }catch(e){ state.pendingMessages = []; }
+}
 
 /* ---------------- theme ---------------- */
 function applyTheme(){
@@ -172,15 +202,18 @@ function toggleTheme(){
   const next = cur === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", next);
   try{ localStorage.setItem(LS_THEME, next); }catch(e){}
+  const b = document.querySelector('[data-action="toggle-theme"]');
+  if(b) b.innerHTML = icon(next === "dark" ? "sun" : "moon");
 }
 
 /* ---------------- shared chrome ---------------- */
 function header(){
   const s = state.settings || {};
+  const dark = document.documentElement.getAttribute("data-theme") === "dark";
   return `
   <header class="site-header">
     <div class="wrap nav">
-      <a class="brand" href="#/"><span class="dot"></span>${esc(s.full_name || "My Portfolio")}</a>
+      <a class="brand" href="#/"><span class="dot"></span>${esc(s.full_name || "Zorvaya Technology")}</a>
       <nav class="nav-links" id="navLinks">
         <a href="#/">Home</a>
         <a href="#/#about">About</a>
@@ -188,8 +221,8 @@ function header(){
         <a href="#/contact">Contact</a>
       </nav>
       <div class="nav-actions">
-        <button class="icon-btn" data-action="toggle-theme" title="Toggle theme" aria-label="Toggle theme">◐</button>
-        <button class="icon-btn menu-toggle" data-action="toggle-menu" aria-label="Menu">☰</button>
+        <button class="icon-btn" data-action="toggle-theme" title="Switch theme" aria-label="Switch theme">${icon(dark?"sun":"moon")}</button>
+        <button class="icon-btn menu-toggle" data-action="toggle-menu" aria-label="Menu">${icon("menu")}</button>
       </div>
     </div>
   </header>`;
@@ -199,19 +232,21 @@ function footer(){
   return `
   <footer>
     <div class="wrap foot">
-      <div>© ${new Date().getFullYear()} ${esc(s.full_name || "Portfolio")}. Built with care.</div>
+      <div>&copy; ${new Date().getFullYear()} ${esc(s.full_name || "Zorvaya Technology")}. All rights reserved.</div>
       <div><a href="#/admin" style="color:var(--muted)">Admin</a></div>
     </div>
   </footer>`;
 }
 function socialLinks(s){
   const items = [
-    ["GitHub", s.github_url], ["LinkedIn", s.linkedin_url],
-    ["Instagram", s.instagram_url], ["Twitter / X", s.twitter_url],
+    ["GitHub", s.github_url, "github"],
+    ["LinkedIn", s.linkedin_url, "linkedin"],
+    ["Instagram", s.instagram_url, "instagram"],
+    ["Twitter / X", s.twitter_url, "twitter"],
   ].filter(x => x[1]);
   if(!items.length) return "";
-  return `<div class="socials">` + items.map(([n,u]) =>
-    `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener">${n}</a>`).join("") + `</div>`;
+  return `<div class="socials">` + items.map(([n,u,ic]) =>
+    `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener">${icon(ic)}${n}</a>`).join("") + `</div>`;
 }
 
 /* ---------------- HOME ---------------- */
@@ -222,7 +257,7 @@ function projectCard(p){
     : `<div class="ph">${esc(p.title)}</div>`;
   return `
   <article class="card" data-action="open-project" data-slug="${esc(p.slug||p.id)}">
-    <div class="thumb">${thumb}${p.featured?`<span class="badge">★ Featured</span>`:""}</div>
+    <div class="thumb">${thumb}${p.featured?`<span class="badge">Featured</span>`:""}</div>
     <div class="card-body">
       <h3>${esc(p.title)}</h3>
       <p>${esc(p.summary||"")}</p>
@@ -247,12 +282,13 @@ function homeView(){
     <section class="hero">
       <div class="wrap hero-grid">
         <div>
-          <span class="eyebrow">● Available for new projects</span>
-          <h1>Hi, I'm <span class="grad">${esc(s.full_name || "Your Name")}</span>.<br>${esc(s.role_title || "")}</h1>
-          <p class="lead">${esc(s.tagline || "I design and build thoughtful digital products.")}</p>
+          <span class="eyebrow">Available for new projects</span>
+          <h1><span class="grad">${esc(s.full_name || "Zorvaya Technology")}</span></h1>
+          <p class="role">${esc(s.role_title || "")}</p>
+          <p class="lead">${esc(s.tagline || "We design and build digital products for the web.")}</p>
           <div class="hero-cta">
-            <a class="btn btn-primary" href="#/#work">View my work</a>
-            <a class="btn btn-ghost" href="#/contact">Start a project →</a>
+            <a class="btn btn-primary" href="#/#work">View our work</a>
+            <a class="btn btn-ghost" href="#/contact">Start a project</a>
           </div>
         </div>
         <div class="avatar-card">${avatar}</div>
@@ -263,8 +299,8 @@ function homeView(){
       <div class="wrap">
         <div class="section-head">
           <div class="kicker">About</div>
-          <h2>A little about me</h2>
-          <p>${esc(s.about || "Tell your story here — what you do, what you love, and how you work. You can edit this from the admin dashboard.")}</p>
+          <h2>About us</h2>
+          <p>${esc(s.about || "Tell your story here: what you build, who you build it for, and how you work. You can edit this from the admin dashboard.")}</p>
         </div>
       </div>
     </section>
@@ -274,7 +310,7 @@ function homeView(){
         <div class="section-head">
           <div class="kicker">Selected work</div>
           <h2>Projects</h2>
-          <p>A selection of things I've designed and built. Click any project to see more.</p>
+          <p>A selection of work we have designed and built. Open any project to see the details.</p>
         </div>
         <div class="filters">
           ${allTags.map(t=>`<button class="chip ${state.filter===t?"active":""}" data-action="filter" data-tag="${esc(t)}">${esc(t)}</button>`).join("")}
@@ -289,28 +325,28 @@ function homeView(){
       <div class="wrap">
         <div class="section-head">
           <div class="kicker">Get in touch</div>
-          <h2>Like a design? Let's talk.</h2>
-          <p>Want something similar to a project you saw here? Send me a message, or reach me directly.</p>
+          <h2>Like what you see? Let's talk.</h2>
+          <p>Want something similar to a project here? Send us a message, or reach us directly.</p>
         </div>
         <div class="contact-grid">
           <div class="contact-list">
-            ${s.email ? contactItem("✉","Email","mailto:"+s.email, s.email) : ""}
-            ${s.phone ? contactItem("☎","Phone","tel:"+s.phone.replace(/[^0-9+]/g,""), s.phone) : ""}
-            ${s.whatsapp ? contactItem("💬","WhatsApp", waLink(s.whatsapp), "Chat on WhatsApp") : ""}
+            ${s.email ? contactItem("mail","Email","mailto:"+s.email, s.email) : ""}
+            ${s.phone ? contactItem("phone","Phone","tel:"+s.phone.replace(/[^0-9+]/g,""), s.phone) : ""}
+            ${s.whatsapp ? contactItem("whatsapp","WhatsApp", waLink(s.whatsapp), "Chat on WhatsApp") : ""}
             ${socialLinks(s)}
           </div>
           <div class="panel">
             <div id="contactMsg"></div>
             <form data-form="contact">
               <div class="two-col">
-                <div class="field"><label>Your name</label><input name="name" required placeholder="Jane Doe"></div>
-                <div class="field"><label>Your email</label><input name="email" type="email" required placeholder="jane@email.com"></div>
+                <div class="field"><label>Your name</label><input name="name" required placeholder="Your full name"></div>
+                <div class="field"><label>Your email</label><input name="email" type="email" required placeholder="you@email.com"></div>
               </div>
               <div class="field">
-                <label>Which project / design are you interested in?</label>
+                <label>Which project or design are you interested in?</label>
                 <input name="project_ref" placeholder="e.g. Aurora Analytics Dashboard" value="${esc(state.contactRef)}">
               </div>
-              <div class="field"><label>Message</label><textarea name="message" required placeholder="Tell me what you'd like to build…"></textarea></div>
+              <div class="field"><label>Message</label><textarea name="message" required placeholder="Tell us what you would like to build."></textarea></div>
               <button class="btn btn-primary" type="submit">Send message</button>
             </form>
           </div>
@@ -320,9 +356,9 @@ function homeView(){
   </main>
   ${footer()}`;
 }
-function contactItem(icon,label,href,val){
+function contactItem(ic,label,href,val){
   return `<a class="contact-item" href="${esc(href)}" target="${href.startsWith("http")?"_blank":"_self"}" rel="noopener">
-    <span class="ci">${icon}</span><span><span class="cl">${esc(label)}</span><br><span class="cv">${esc(val)}</span></span></a>`;
+    <span class="ci">${icon(ic)}</span><span><span class="cl">${esc(label)}</span><br><span class="cv">${esc(val)}</span></span></a>`;
 }
 
 /* ---------------- PROJECT DETAIL ---------------- */
@@ -332,13 +368,13 @@ function detailView(slug){
   const gallery = (p.gallery||[]).map(u=>`<img src="${esc(u)}" alt="" loading="lazy">`).join("");
   const cover = p.cover_image_url ? `<img src="${esc(p.cover_image_url)}" alt="${esc(p.title)}">` : "";
   const links = [];
-  if(p.live_url) links.push(`<a class="btn btn-primary" href="${esc(p.live_url)}" target="_blank" rel="noopener">View live ↗</a>`);
+  if(p.live_url) links.push(`<a class="btn btn-primary" href="${esc(p.live_url)}" target="_blank" rel="noopener">View live ${icon("external")}</a>`);
   if(p.repo_url) links.push(`<a class="btn btn-ghost" href="${esc(p.repo_url)}" target="_blank" rel="noopener">Source code</a>`);
   return `
   ${header()}
   <main class="wrap">
     <div class="detail-hero">
-      <a class="back-link" href="#/#work">← All projects</a>
+      <a class="back-link" href="#/#work">${icon("arrowLeft")} All projects</a>
       <h1 class="detail-title">${esc(p.title)}</h1>
       <div class="tags">${(p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>
       <div class="detail-cover">${cover}</div>
@@ -346,7 +382,7 @@ function detailView(slug){
       ${gallery?`<div class="gallery">${gallery}</div>`:""}
       <div class="hero-cta" style="margin:28px 0 10px">
         ${links.join("")}
-        <button class="btn btn-ghost" data-action="enquire" data-ref="${esc(p.title)}">Want something like this? Contact me</button>
+        <button class="btn btn-ghost" data-action="enquire" data-ref="${esc(p.title)}">Want something like this? Contact us</button>
       </div>
     </div>
   </main>
@@ -361,7 +397,7 @@ function adminView(){
   const unread = (state.pendingMessages||[]).filter(m=>!m.is_read).length;
   return `
   ${header()}
-  <main class="wrap" style="padding:34px 0 60px">
+  <main class="wrap" style="padding:36px 0 64px">
     <div class="admin-head">
       <div>
         <div class="kicker">Dashboard</div>
@@ -374,7 +410,7 @@ function adminView(){
     </div>
     <div class="tabs">
       <button class="tab ${state.adminTab==="projects"?"active":""}" data-action="admin-tab" data-tab="projects">Projects</button>
-      <button class="tab ${state.adminTab==="messages"?"active":""}" data-action="admin-tab" data-tab="messages">Messages ${unread?`(${unread})`:""}</button>
+      <button class="tab ${state.adminTab==="messages"?"active":""}" data-action="admin-tab" data-tab="messages">Messages${unread?` (${unread})`:""}</button>
       <button class="tab ${state.adminTab==="settings"?"active":""}" data-action="admin-tab" data-tab="settings">Site settings</button>
     </div>
     ${flashBanner()}
@@ -392,12 +428,12 @@ function adminProjects(){
     <div class="row-item">
       <div class="ri-thumb">${p.cover_image_url?`<img src="${esc(p.cover_image_url)}" alt="">`:""}</div>
       <div class="grow">
-        <h4>${esc(p.title)} ${p.featured?`<span class="pill">★ Featured</span>`:""}</h4>
-        <div class="sub">${esc(p.summary||"—")}</div>
+        <h4>${esc(p.title)} ${p.featured?`<span class="pill">Featured</span>`:""}</h4>
+        <div class="sub">${esc(p.summary||"-")}</div>
       </div>
       <div class="row-actions">
         <button class="btn btn-ghost btn-sm" data-action="edit-project" data-id="${esc(p.id)}">Edit</button>
-        <button class="btn btn-danger btn-sm" data-action="delete-project" data-id="${esc(p.id)}" data-title="${esc(p.title)}">Delete</button>
+        <button class="btn btn-danger btn-sm" data-action="delete-project" data-id="${esc(p.id)}" data-title="${esc(p.title)}">Remove</button>
       </div>
     </div>`).join("");
   return `
@@ -405,8 +441,8 @@ function adminProjects(){
       <div class="stat"><div class="n">${state.projects.length}</div><div class="l">Projects</div></div>
       <div class="stat"><div class="n">${state.projects.filter(p=>p.featured).length}</div><div class="l">Featured</div></div>
     </div>
-    <div style="margin-bottom:16px"><button class="btn btn-primary" data-action="new-project">+ Add project</button></div>
-    ${rows || `<div class="empty">No projects yet — add your first one.</div>`}`;
+    <div style="margin-bottom:18px"><button class="btn btn-primary" data-action="new-project">${icon("plus")} Add new project</button></div>
+    ${rows || `<div class="empty">No projects yet. Add your first one.</div>`}`;
 }
 function adminMessages(){
   const msgs = state.pendingMessages || [];
@@ -415,7 +451,7 @@ function adminMessages(){
       <div style="display:flex;justify-content:space-between;width:100%;gap:12px;flex-wrap:wrap">
         <div>
           <h4 style="margin:0">${esc(m.name)} ${m.is_read?"":`<span class="pill unread">New</span>`}</h4>
-          <div class="sub">${esc(m.email)} · ${fmtDate(m.created_at)}</div>
+          <div class="sub">${esc(m.email)} &middot; ${fmtDate(m.created_at)}</div>
         </div>
         <div class="row-actions">
           <a class="btn btn-ghost btn-sm" href="mailto:${esc(m.email)}?subject=${encodeURIComponent("Re: your enquiry")}">Reply</a>
@@ -434,23 +470,23 @@ function adminMessages(){
 }
 function adminSettings(){
   const s = state.settings || {};
-  const f = (name,label,type="text",ph="") =>
-    `<div class="field"><label>${label}</label><input name="${name}" type="${type}" value="${esc(s[name]||"")}" placeholder="${esc(ph)}"></div>`;
+  const f = (name,label,type,ph) =>
+    `<div class="field"><label>${label}</label><input name="${name}" type="${type||"text"}" value="${esc(s[name]||"")}" placeholder="${esc(ph||"")}"></div>`;
   return `
   <div class="panel">
     <div id="settingsMsg"></div>
     <form data-form="settings">
       <div class="two-col">
-        ${f("full_name","Your name")}
-        ${f("role_title","Role / title")}
+        ${f("full_name","Site / company name")}
+        ${f("role_title","Role or subtitle")}
       </div>
       ${f("tagline","Tagline (hero line)")}
       <div class="field"><label>About text</label><textarea name="about">${esc(s.about||"")}</textarea></div>
       <div class="two-col">
         ${f("email","Email","email")}
         ${f("phone","Phone")}
-        ${f("whatsapp","WhatsApp number (digits, incl. country code)","text","919876543210")}
-        ${f("avatar_url","Profile photo URL")}
+        ${f("whatsapp","WhatsApp number (digits, with country code)","text","919876543210")}
+        ${f("avatar_url","Logo / profile image URL")}
       </div>
       <div class="two-col">
         ${f("github_url","GitHub URL")}
@@ -458,7 +494,7 @@ function adminSettings(){
         ${f("instagram_url","Instagram URL")}
         ${f("twitter_url","Twitter / X URL")}
       </div>
-      ${f("resume_url","Résumé / CV URL")}
+      ${f("resume_url","Brochure / CV URL")}
       <button class="btn btn-primary" type="submit">Save settings</button>
     </form>
   </div>`;
@@ -471,7 +507,7 @@ function loginView(){
     <div class="panel">
       <div class="kicker">Admin</div>
       <h2 style="margin:0 0 6px;font-size:1.5rem">${signup?"Create admin account":"Sign in"}</h2>
-      <p class="note" style="margin:0 0 20px">${signup?"Use the email you want as your admin login.":"Only the admin can add or edit projects."}</p>
+      <p class="note" style="margin:0 0 20px">${signup?"Use the email you want as your admin login.":"Only the admin can add or remove projects."}</p>
       ${flashBanner()}
       <div id="loginMsg"></div>
       <form data-form="login">
@@ -493,7 +529,7 @@ function notAdminView(){
   <main class="wrap login-wrap">
     <div class="panel" style="text-align:center">
       <h2 style="margin:0 0 8px;font-size:1.4rem">Not an admin</h2>
-      <p class="note">You're signed in as <b>${esc(state.user.email)}</b>, but this account isn't on the admin list, so it can't add or edit projects.</p>
+      <p class="note">You are signed in as <b>${esc(state.user.email)}</b>, but this account is not on the admin list, so it cannot add or remove projects.</p>
       <button class="btn btn-ghost" data-action="logout" style="margin-top:12px">Log out</button>
     </div>
   </main>
@@ -509,7 +545,7 @@ function openProjectModal(project){
   root.innerHTML = `
   <div class="modal-back" data-action="close-modal-bg">
     <div class="modal" onclick="event.stopPropagation()">
-      <h3>${project?"Edit project":"Add project"}</h3>
+      <h3>${project?"Edit project":"Add new project"}</h3>
       <div id="projMsg"></div>
       <form data-form="project" data-id="${esc(p.id||"")}">
         <div class="two-col">
@@ -518,8 +554,8 @@ function openProjectModal(project){
         </div>
         <div class="field"><label>Short summary</label><input name="summary" value="${esc(p.summary||"")}" placeholder="One line shown on the card"></div>
         <div class="field"><label>Full description</label><textarea name="description">${esc(p.description||"")}</textarea></div>
-        <div class="field"><label>Cover image URL</label><input name="cover_image_url" value="${esc(p.cover_image_url||"")}" placeholder="https://…"></div>
-        <div class="field"><label>Gallery image URLs (one per line)</label><textarea name="gallery" placeholder="https://…\nhttps://…">${esc((p.gallery||[]).join("\n"))}</textarea></div>
+        <div class="field"><label>Cover image URL</label><input name="cover_image_url" value="${esc(p.cover_image_url||"")}" placeholder="https://"></div>
+        <div class="field"><label>Gallery image URLs (one per line)</label><textarea name="gallery" placeholder="https://&#10;https://">${esc((p.gallery||[]).join("\n"))}</textarea></div>
         <div class="field"><label>Tags (comma separated)</label><input name="tags" value="${esc((p.tags||[]).join(", "))}" placeholder="Web App, UI/UX"></div>
         <div class="two-col">
           <div class="field"><label>Live URL</label><input name="live_url" value="${esc(p.live_url||"")}"></div>
@@ -566,17 +602,10 @@ async function render(){
   }
   app.innerHTML = html;
   state.flash = null;
-  document.title = (state.settings && state.settings.full_name ? state.settings.full_name + " — Portfolio" : "Portfolio");
+  document.title = (state.settings && state.settings.full_name ? state.settings.full_name : "Portfolio");
   const sec = hash.match(/^#\/#(.+)$/);
   if(hash === "#/contact"){ setTimeout(()=>document.getElementById("contact")?.scrollIntoView({behavior:"smooth"}), 80); }
   else if(sec){ setTimeout(()=>document.getElementById(sec[1])?.scrollIntoView({behavior:"smooth"}), 80); }
-}
-
-async function loadMessages(){
-  if(!state.isAdmin) return;
-  try{
-    state.pendingMessages = await api("/messages?select=*&order=created_at.desc") || [];
-  }catch(e){ state.pendingMessages = []; }
 }
 
 /* ---------------- events (delegation) ---------------- */
@@ -601,12 +630,12 @@ app.addEventListener("click", async (e) => {
     openProjectModal(p); return;
   }
   if(a === "delete-project"){
-    if(!confirm("Delete project \"" + el.dataset.title + "\"? This can't be undone.")) return;
+    if(!confirm("Remove project \"" + el.dataset.title + "\"? This cannot be undone.")) return;
     try{
       await ensureSession();
       await api("/projects?id=eq." + el.dataset.id, { method:"DELETE" });
       await loadProjects(); render();
-    }catch(err){ alert("Could not delete: " + err.message); }
+    }catch(err){ alert("Could not remove: " + err.message); }
     return;
   }
   if(a === "toggle-read"){
@@ -653,7 +682,7 @@ app.addEventListener("submit", async (e) => {
     try{
       await api("/messages", { method:"POST", body, prefer:"return=minimal" });
       form.reset(); state.contactRef = "";
-      msg("contactMsg","Thanks! Your message has been sent. I'll get back to you soon.","ok");
+      msg("contactMsg","Thank you. Your message has been sent and we will get back to you soon.","ok");
     }catch(err){ msg("contactMsg","Sorry, something went wrong: " + err.message, "err"); }
     return;
   }
@@ -675,7 +704,6 @@ app.addEventListener("submit", async (e) => {
       }
       await checkAdmin(); await loadSettings(); await loadProjects();
       state.adminTab = "projects";
-      msg("loginMsg","Signed in.","ok");
       render();
     }catch(err){ msg("loginMsg", err.message, "err"); }
     return;
@@ -706,8 +734,10 @@ app.addEventListener("submit", async (e) => {
         try{
           await api("/projects", { method:"POST", body, prefer:"return=representation" });
         }catch(err){
-          if(/duplicate|unique/i.test(err.message)){ body.slug = body.slug + "-" + Date.now().toString(36); await api("/projects", { method:"POST", body, prefer:"return=representation" }); }
-          else throw err;
+          if(/duplicate|unique/i.test(err.message)){
+            body.slug = body.slug + "-" + Date.now().toString(36);
+            await api("/projects", { method:"POST", body, prefer:"return=representation" });
+          } else throw err;
         }
       }
       closeModal();
