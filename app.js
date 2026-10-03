@@ -24,6 +24,9 @@ const state = {
   loginMode: "signin",
   contactRef: "",
   pendingMessages: [],
+  ratings: [],
+  ratingPick: 0,
+  ratingJustSubmitted: false,
   loaded: false,
   flash: null,
 };
@@ -190,6 +193,26 @@ async function loadMessages(){
     state.pendingMessages = await api("/messages?select=*&order=created_at.desc") || [];
   }catch(e){ state.pendingMessages = []; }
 }
+async function loadRatings(){
+  try{
+    state.ratings = await api("/ratings?select=id,stars,comment,created_at&order=created_at.desc") || [];
+  }catch(e){ state.ratings = []; }
+}
+function ratingStats(){
+  const r = state.ratings || [];
+  if(!r.length) return { avg:0, count:0 };
+  const sum = r.reduce((a,x)=>a + (x.stars||0), 0);
+  return { avg: sum / r.length, count: r.length };
+}
+const STAR_PATH = "M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z";
+function starSvg(extra){
+  return `<svg class="star ${extra||""}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`;
+}
+function starsRow(v){
+  let o = "";
+  for(let i=1;i<=5;i++){ o += starSvg(i<=v ? "on" : ""); }
+  return o;
+}
 
 /* ---------------- theme ---------------- */
 function applyTheme(){
@@ -271,6 +294,50 @@ function marquee(){
   const seq = words.map(w=>`<span>${w}</span>${star}`).join("");
   return `<div class="marquee" aria-hidden="true"><div class="marquee-track">${seq}${seq}</div></div>`;
 }
+function rateSection(){
+  const { avg, count } = ratingStats();
+  const rounded = Math.round(avg);
+  const recent = (state.ratings||[]).filter(r => r.comment && r.comment.trim()).slice(0,3);
+  const pick = state.ratingPick || 0;
+  const picker = `<div class="rate-pick" id="ratePick">` +
+    [1,2,3,4,5].map(i => `<button type="button" class="star-btn ${i<=pick?"on":""}" data-action="rate" data-value="${i}" aria-label="Rate ${i} out of 5">${starSvg()}</button>`).join("") +
+    `</div>`;
+  return `
+  <section id="rate">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">Feedback</div>
+        <h2>Rate this website</h2>
+        <p>How did we do? Your rating helps us make it better.</p>
+      </div>
+      <div class="rate-grid${recent.length?"":" solo"}">
+        <div class="panel">
+          <div class="rate-avg">
+            <div class="rate-big">${count ? avg.toFixed(1) : "-"}</div>
+            <div>
+              <div class="stars-static">${starsRow(rounded)}</div>
+              <div class="note">${count ? count + (count===1?" rating":" ratings") + " so far" : "No ratings yet. Be the first."}</div>
+            </div>
+          </div>
+          ${state.ratingJustSubmitted
+            ? `<div class="alert ok">Thanks for rating. We appreciate it.</div>`
+            : `<form data-form="rating">
+                <input type="hidden" name="stars" id="rateStars" value="${pick}">
+                ${picker}
+                <div class="field"><label>Add a short comment (optional)</label><textarea name="comment" placeholder="What did you think?"></textarea></div>
+                <div id="rateMsg"></div>
+                <button class="btn btn-primary" type="submit">Submit rating</button>
+              </form>`}
+        </div>
+        ${recent.length ? `<div class="rate-recent">${recent.map(r=>`
+          <div class="quote">
+            <div class="stars-static">${starsRow(r.stars)}</div>
+            <p>${esc(r.comment)}</p>
+          </div>`).join("")}</div>` : ""}
+      </div>
+    </div>
+  </section>`;
+}
 function homeView(){
   const s = state.settings || {};
   const allTags = ["All"];
@@ -328,6 +395,8 @@ function homeView(){
         </div>
       </div>
     </section>
+
+    ${rateSection()}
 
     <section id="contact">
       <div class="wrap">
@@ -419,6 +488,7 @@ function adminView(){
     <div class="tabs">
       <button class="tab ${state.adminTab==="projects"?"active":""}" data-action="admin-tab" data-tab="projects">Projects</button>
       <button class="tab ${state.adminTab==="messages"?"active":""}" data-action="admin-tab" data-tab="messages">Messages${unread?` (${unread})`:""}</button>
+      <button class="tab ${state.adminTab==="ratings"?"active":""}" data-action="admin-tab" data-tab="ratings">Ratings</button>
       <button class="tab ${state.adminTab==="settings"?"active":""}" data-action="admin-tab" data-tab="settings">Site settings</button>
     </div>
     ${flashBanner()}
@@ -429,6 +499,7 @@ function adminView(){
 function adminTabBody(){
   if(state.adminTab === "projects") return adminProjects();
   if(state.adminTab === "messages") return adminMessages();
+  if(state.adminTab === "ratings") return adminRatings();
   return adminSettings();
 }
 function adminProjects(){
@@ -475,6 +546,27 @@ function adminMessages(){
       <div class="stat"><div class="n">${msgs.filter(m=>!m.is_read).length}</div><div class="l">Unread</div></div>
     </div>
     ${rows || `<div class="empty">No messages yet.</div>`}`;
+}
+function adminRatings(){
+  const { avg, count } = ratingStats();
+  const rows = (state.ratings||[]).map(r => `
+    <div class="row-item" style="align-items:flex-start;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;width:100%;gap:12px;flex-wrap:wrap">
+        <div>
+          <div class="stars-static">${starsRow(r.stars)}</div>
+          <div class="sub">${fmtDate(r.created_at)}</div>
+        </div>
+        <div class="row-actions">
+          <button class="btn btn-danger btn-sm" data-action="delete-rating" data-id="${esc(r.id)}">Delete</button>
+        </div>
+      </div>
+      ${r.comment ? `<p style="margin:8px 0 0;color:var(--muted)">${esc(r.comment)}</p>` : ""}
+    </div>`).join("");
+  return `<div class="stat-row">
+      <div class="stat"><div class="n">${count ? avg.toFixed(1) : "-"}</div><div class="l">Average rating</div></div>
+      <div class="stat"><div class="n">${count}</div><div class="l">Total ratings</div></div>
+    </div>
+    ${rows || `<div class="empty">No ratings yet.</div>`}`;
 }
 function adminSettings(){
   const s = state.settings || {};
@@ -601,7 +693,7 @@ async function render(){
   if(hash.startsWith("#/p/")){
     html = detailView(decodeURIComponent(hash.slice(4)));
   } else if(hash.startsWith("#/admin")){
-    if(state.session){ await ensureSession(); await checkAdmin(); await loadMessages(); }
+    if(state.session){ await ensureSession(); await checkAdmin(); await loadMessages(); await loadRatings(); }
     html = adminView();
   } else if(hash.startsWith("#/contact")){
     html = homeView();
@@ -626,10 +718,29 @@ app.addEventListener("click", async (e) => {
   if(a === "toggle-menu"){ document.getElementById("navLinks")?.classList.toggle("open"); return; }
   if(a === "open-project"){ location.hash = "#/p/" + encodeURIComponent(el.dataset.slug); return; }
   if(a === "filter"){ state.filter = el.dataset.tag; render(); return; }
+  if(a === "rate"){
+    const v = parseInt(el.dataset.value, 10) || 0;
+    state.ratingPick = v;
+    const pick = document.getElementById("ratePick");
+    if(pick){ Array.from(pick.querySelectorAll("[data-action='rate']")).forEach((b,i)=>b.classList.toggle("on", i < v)); }
+    const hidden = document.getElementById("rateStars");
+    if(hidden) hidden.value = String(v);
+    return;
+  }
+  if(a === "delete-rating"){
+    if(!confirm("Delete this rating?")) return;
+    try{
+      await ensureSession();
+      await api("/ratings?id=eq." + el.dataset.id, { method:"DELETE" });
+      await loadRatings(); render();
+    }catch(err){ alert("Could not delete: " + err.message); }
+    return;
+  }
   if(a === "enquire"){ state.contactRef = el.dataset.ref || ""; location.hash = "#/contact"; render(); return; }
   if(a === "admin-tab"){
     state.adminTab = el.dataset.tab;
     if(state.adminTab === "messages") await loadMessages();
+    if(state.adminTab === "ratings") await loadRatings();
     render(); return;
   }
   if(a === "new-project"){ openProjectModal(null); return; }
@@ -692,6 +803,21 @@ app.addEventListener("submit", async (e) => {
       form.reset(); state.contactRef = "";
       msg("contactMsg","Thank you. Your message has been sent and we will get back to you soon.","ok");
     }catch(err){ msg("contactMsg","Sorry, something went wrong: " + err.message, "err"); }
+    return;
+  }
+
+  if(kind === "rating"){
+    const stars = parseInt(fd.get("stars")||"0", 10);
+    const comment = (fd.get("comment")||"").trim();
+    if(!(stars >= 1 && stars <= 5)){ msg("rateMsg","Please pick a star rating first.","err"); return; }
+    try{
+      await api("/ratings", { method:"POST", body:{ stars, comment }, prefer:"return=minimal" });
+      state.ratingPick = 0;
+      state.ratingJustSubmitted = true;
+      await loadRatings();
+      render();
+      setTimeout(()=>document.getElementById("rate")?.scrollIntoView({behavior:"smooth"}), 80);
+    }catch(err){ msg("rateMsg","Could not save your rating: " + err.message, "err"); }
     return;
   }
 
@@ -776,7 +902,7 @@ window.addEventListener("hashchange", render);
 (async function boot(){
   applyTheme();
   loadSessionFromStorage();
-  await Promise.all([loadSettings(), loadProjects()]);
+  await Promise.all([loadSettings(), loadProjects(), loadRatings()]);
   if(state.session){ await ensureSession(); if(state.session && state.session.access_token){ await checkAdmin(); } }
   state.loaded = true;
   render();
