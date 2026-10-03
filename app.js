@@ -252,6 +252,14 @@ function toggleTheme(){
   if(b) b.innerHTML = icon(next === "dark" ? "sun" : "moon");
 }
 
+/* ---------------- device / layout ---------------- */
+const mqMobile = window.matchMedia("(max-width: 820px)");
+function isMobile(){ return mqMobile.matches; }
+function applyDevice(){
+  document.documentElement.dataset.device = mqMobile.matches ? "mobile" : "desktop";
+}
+mqMobile.addEventListener("change", function(){ applyDevice(); render(); });
+
 /* ---------------- shared chrome ---------------- */
 function header(){
   const s = state.settings || {};
@@ -271,7 +279,24 @@ function header(){
         <button class="icon-btn menu-toggle" data-action="toggle-menu" aria-label="Menu">${icon("menu")}</button>
       </div>
     </div>
-  </header>`;
+  </header>
+  ${mobileNav()}`;
+}
+function mobileNav(){
+  const h = location.hash || "#/";
+  const on = (key) =>
+    key === "home" ? (h === "#/" || h === "" || h === "#") :
+    key === "work" ? (h.indexOf("#work") > -1 || h.indexOf("#/p/") === 0) :
+    key === "contact" ? (h.indexOf("#/contact") === 0) :
+    (h.indexOf("#/admin") === 0);
+  const item = (key, label, hash, ic) =>
+    `<a class="mnav-item ${on(key)?"active":""}" href="${hash}">${icon(ic)}<span>${label}</span></a>`;
+  return `<nav class="mobile-nav" aria-label="Mobile navigation">
+    ${item("home","Home","#/","grid")}
+    ${item("work","Work","#/#work","layers")}
+    ${item("contact","Contact","#/contact","mail")}
+    ${item("admin","Admin","#/admin","gear")}
+  </nav>`;
 }
 function footer(){
   const s = state.settings || {};
@@ -413,9 +438,12 @@ function homeView(){
         <div class="filters">
           ${allTags.map(t=>`<button class="chip ${state.filter===t?"active":""}" data-action="filter" data-tag="${esc(t)}">${esc(t)}</button>`).join("")}
         </div>
-        <div class="grid">
-          ${shown.length ? shown.map(projectCard).join("") : `<div class="empty">No projects yet. Check back soon.</div>`}
-        </div>
+        ${shown.length
+          ? (isMobile()
+              ? `<div class="carousel">${shown.map(projectCard).join("")}</div>
+                 <p class="swipe-hint">Swipe to explore the work</p>`
+              : `<div class="grid">${shown.map(projectCard).join("")}</div>`)
+          : `<div class="empty">No projects yet. Check back soon.</div>`}
       </div>
     </section>
 
@@ -1026,6 +1054,7 @@ window.addEventListener("hashchange", render);
 /* ---------------- boot ---------------- */
 (async function boot(){
   applyTheme();
+  applyDevice();
   loadSessionFromStorage();
   state.loaded = true;
   render();  /* paint immediately - never wait on the network */
