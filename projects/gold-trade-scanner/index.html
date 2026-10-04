@@ -1,30 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://s3.tradingview.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.binance.com https://query1.finance.yahoo.com https://query2.finance.yahoo.com https://scanner.tradingview.com; frame-src https://www.tradingview.com https://s.tradingview.com">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Gold Trade Scanner — XAU/USD Signal App</title>
 <meta name="description" content="XAU/USD gold signal scanner — multi-agent technical analysis, liquidity sweep & FVG detection, live charts and trade plans.">
-<meta name="theme-color" content="#0e0e12">
+<meta name="theme-color" content="#0a1a33">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23d4a937'/%3E%3Ctext x='50' y='70' font-size='54' text-anchor='middle' fill='%230e0e12' font-family='Arial' font-weight='bold'%3EAu%3C/text%3E%3C/svg%3E">
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   :root {
-    --bg: #0e0e12;
-    --card: #16161c;
-    --card-border: #2a2a33;
-    --gold: #d4a937;
-    --gold-bright: #f0c75e;
-    --text: #e8e8e8;
-    --text-dim: #8a8a92;
+    --bg: #0a1a33;
+    --card: #0b2440;
+    --card-border: #1a4b6e;
+    --gold: #54acbf;
+    --gold-bright: #a7ebf2;
+    --text: #eaf6fa;
+    --text-dim: #8fb6cc;
     --green: #26a69a;
     --red: #ef5350;
-    --blue: #4a90d9;
-    --orange: #ff9f43;
-    --purple: #a67fd9;
-    --teal: #0891b2;
+    --blue: #26658c;
+    --orange: #8fd9e8;
+    --purple: #54acbf;
+    --teal: #26658c;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -89,14 +91,14 @@
     padding: 3px 10px; border-radius: 6px; white-space: nowrap;
   }
   .session-pill.prime { background: rgba(38,166,154,0.15); color: var(--green); border: 1px solid var(--green); }
-  .session-pill.best { background: rgba(212,169,55,0.15); color: var(--gold-bright); border: 1px solid var(--gold); }
-  .session-pill.caution { background: rgba(255,159,67,0.12); color: var(--orange); border: 1px solid rgba(255,159,67,0.5); }
+  .session-pill.best { background: rgba(84,172,191,0.15); color: var(--gold-bright); border: 1px solid var(--gold); }
+  .session-pill.caution { background: rgba(84,172,191,0.12); color: var(--orange); border: 1px solid rgba(84,172,191,0.5); }
   .session-pill.avoid { background: rgba(239,83,80,0.12); color: var(--red); border: 1px solid rgba(239,83,80,0.5); }
-  .session-pill.closed { background: rgba(138,138,146,0.12); color: var(--text-dim); border: 1px solid var(--card-border); }
+  .session-pill.closed { background: rgba(143,182,204,0.12); color: var(--text-dim); border: 1px solid var(--card-border); }
 
   /* Signal Card */
   .signal-card {
-    background: linear-gradient(135deg, var(--card) 0%, #1c1c24 100%);
+    background: linear-gradient(135deg, var(--card) 0%, #102c4a 100%);
     border: 1px solid var(--card-border);
     border-radius: 12px;
     padding: 16px;
@@ -126,8 +128,8 @@
   .bias-badge.buy { background: rgba(38,166,154,0.1); color: var(--green); border: 1px solid rgba(38,166,154,0.5); }
   .bias-badge.strong-sell { background: rgba(239,83,80,0.2); color: var(--red); border: 1px solid var(--red); }
   .bias-badge.sell { background: rgba(239,83,80,0.1); color: var(--red); border: 1px solid rgba(239,83,80,0.5); }
-  .bias-badge.neutral { background: rgba(255,159,67,0.15); color: var(--orange); border: 1px solid rgba(255,159,67,0.5); }
-  .bias-badge.wait { background: rgba(138,138,146,0.1); color: var(--text-dim); border: 1px solid var(--card-border); }
+  .bias-badge.neutral { background: rgba(84,172,191,0.15); color: var(--orange); border: 1px solid rgba(84,172,191,0.5); }
+  .bias-badge.wait { background: rgba(143,182,204,0.1); color: var(--text-dim); border: 1px solid var(--card-border); }
 
   .confidence-box { display: flex; align-items: center; gap: 8px; }
   .confidence-ring {
@@ -190,8 +192,8 @@
 
   /* Sweep setup info block */
   .setup-block {
-    background: rgba(212,169,55,0.06);
-    border: 1px dashed rgba(212,169,55,0.35);
+    background: rgba(84,172,191,0.06);
+    border: 1px dashed rgba(84,172,191,0.35);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 12px;
@@ -315,12 +317,12 @@
 
   /* Strategy Guide panel — which strategies we use & how they work */
   .sg-panel {
-    background: rgba(22,22,28,0.78); border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(11,36,64,0.78); border: 1px solid rgba(255,255,255,0.14);
     border-radius: 12px; padding: 12px; margin-bottom: 12px;
     backdrop-filter: blur(14px) saturate(1.25); -webkit-backdrop-filter: blur(14px) saturate(1.25);
   }
   @supports not ((backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px))) {
-    .sg-panel { background: rgba(22,22,28,0.97); }
+    .sg-panel { background: rgba(11,36,64,0.97); }
   }
   .sg-title { font-size: 13px; font-weight: 800; color: var(--gold-bright); letter-spacing: 0.4px; margin-bottom: 2px; }
   .sg-sub { font-size: 10px; color: var(--text-dim); margin-bottom: 10px; }
@@ -338,7 +340,7 @@
   .sg-item summary .sg-name { flex: 1; }
   .sg-item summary .sg-tag {
     font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px;
-    padding: 2px 7px; border-radius: 5px; background: rgba(212,169,55,0.14); color: var(--gold-bright);
+    padding: 2px 7px; border-radius: 5px; background: rgba(84,172,191,0.14); color: var(--gold-bright);
     flex-shrink: 0;
   }
   .sg-item summary .sg-chevron { color: var(--text-dim); font-size: 10px; transition: transform 0.2s; flex-shrink: 0; }
@@ -433,7 +435,7 @@
   }
   .tv-rec-badge.strong_buy { background: rgba(38,166,154,0.2); color: var(--green); border: 1px solid var(--green); }
   .tv-rec-badge.buy { background: rgba(38,166,154,0.1); color: var(--green); border: 1px solid rgba(38,166,154,0.5); }
-  .tv-rec-badge.neutral { background: rgba(255,159,67,0.12); color: var(--orange); border: 1px solid rgba(255,159,67,0.5); }
+  .tv-rec-badge.neutral { background: rgba(84,172,191,0.12); color: var(--orange); border: 1px solid rgba(84,172,191,0.5); }
   .tv-rec-badge.sell { background: rgba(239,83,80,0.1); color: var(--red); border: 1px solid rgba(239,83,80,0.5); }
   .tv-rec-badge.strong_sell { background: rgba(239,83,80,0.2); color: var(--red); border: 1px solid var(--red); }
 
@@ -458,7 +460,7 @@
     color: var(--text-dim); cursor: pointer; letter-spacing: 0.5px;
     transition: all 0.15s; white-space: nowrap;
   }
-  .ap-toggle.active { background: rgba(212,169,55,0.15); color: var(--gold-bright); border-color: var(--gold); }
+  .ap-toggle.active { background: rgba(84,172,191,0.15); color: var(--gold-bright); border-color: var(--gold); }
   .ap-speed {
     font-size: 10px; font-weight: 700; color: var(--green);
     background: rgba(38,166,154,0.1); border: 1px solid rgba(38,166,154,0.4);
@@ -495,7 +497,7 @@
   .ag-note { font-size: 10.5px; color: var(--text-dim); line-height: 1.4; }
   .ap-consensus {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    background: rgba(212,169,55,0.07); border: 1px dashed rgba(212,169,55,0.4);
+    background: rgba(84,172,191,0.07); border: 1px dashed rgba(84,172,191,0.4);
     border-radius: 8px; padding: 8px 12px;
   }
   .apc-label {
@@ -510,12 +512,12 @@
 
   /* Trade Plan panel — where to buy / where to sell */
   .tp-panel {
-    background: rgba(22,22,28,0.78); border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(11,36,64,0.78); border: 1px solid rgba(255,255,255,0.14);
     border-radius: 12px; padding: 12px; margin-bottom: 12px;
     backdrop-filter: blur(14px) saturate(1.25); -webkit-backdrop-filter: blur(14px) saturate(1.25);
   }
   @supports not ((backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px))) {
-    .tp-panel { background: rgba(22,22,28,0.97); }
+    .tp-panel { background: rgba(11,36,64,0.97); }
   }
   .tp-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
   .tp-title { font-size: 13px; font-weight: 800; color: var(--gold-bright); letter-spacing: 0.4px; }
@@ -534,7 +536,7 @@
   .tp-status { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; padding: 3px 8px; border-radius: 6px; text-align: center; }
   .tp-status.go { background: rgba(38,166,154,0.18); color: var(--green); }
   .tp-status.bad { background: rgba(239,83,80,0.18); color: var(--red); }
-  .tp-status.wait { background: rgba(255,159,67,0.14); color: var(--orange); }
+  .tp-status.wait { background: rgba(84,172,191,0.14); color: var(--orange); }
   .tp-zone { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; margin-bottom: 8px; }
   .tp-card.buy .tp-zone { color: var(--green); }
   .tp-card.sell .tp-zone { color: var(--red); }
@@ -550,7 +552,7 @@
   /* Signal-change alert bar */
   .signal-alert {
     display: none; align-items: center; gap: 10px;
-    background: linear-gradient(135deg, rgba(212,169,55,0.18), rgba(212,169,55,0.08));
+    background: linear-gradient(135deg, rgba(84,172,191,0.18), rgba(84,172,191,0.08));
     border: 1px solid var(--gold); border-radius: 10px;
     padding: 10px 14px; margin-bottom: 12px;
     animation: alertPulse 1.2s ease-in-out 3;
@@ -574,7 +576,7 @@
     font-size: 10px; font-weight: 800; color: var(--gold);
     text-transform: uppercase; letter-spacing: 1px;
     margin: 10px 0 4px; padding-bottom: 2px;
-    border-bottom: 1px dashed rgba(212,169,55,0.3);
+    border-bottom: 1px dashed rgba(84,172,191,0.3);
   }
   .r-header:first-child { margin-top: 0; }
 
@@ -624,8 +626,8 @@
   /* Inner translucent cells pop slightly on glass */
   .price-cell { background: rgba(255,255,255,0.06); }
   .agent-card { background: rgba(255,255,255,0.05); }
-  .ap-consensus { background: rgba(212,169,55,0.10); }
-  .setup-block { background: rgba(212,169,55,0.09); }
+  .ap-consensus { background: rgba(84,172,191,0.10); }
+  .setup-block { background: rgba(84,172,191,0.09); }
   .disclaimer { background: rgba(239,83,80,0.08); }
 
   /* Glass edge borders */
@@ -638,19 +640,19 @@
   input[type="file"] { display: none; }
 
   /* ── 2026 refresh: polish layer ── */
-  ::selection { background: rgba(212,169,55,0.35); }
+  ::selection { background: rgba(84,172,191,0.35); }
 
   /* Gold-gradient wordmark */
   .header h1 {
-    background: linear-gradient(120deg, #f5d786 0%, #f0c75e 35%, #c9982e 100%);
+    background: linear-gradient(120deg, #c7f0f7 0%, #a7ebf2 35%, #26658c 100%);
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 2px 18px rgba(212,169,55,0.25);
+    text-shadow: 0 2px 18px rgba(84,172,191,0.25);
   }
 
   /* Live pill gets a container of its own */
   .live-dot {
-    background: rgba(22,22,28,0.75);
+    background: rgba(11,36,64,0.75);
     border: 1px solid var(--card-border);
     border-radius: 999px;
     padding: 4px 12px;
@@ -685,7 +687,7 @@
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
     .signal-card:hover, .chart-panel:hover, .agent-panel:hover, .tp-panel:hover, .sg-panel:hover {
-      border-color: rgba(212,169,55,0.45);
+      border-color: rgba(84,172,191,0.45);
       box-shadow: 0 10px 32px rgba(0,0,0,0.4);
     }
   }
@@ -714,16 +716,16 @@
   .si-sessions { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px; }
   .si-sess { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 10px; padding: 8px 10px; cursor: help; }
   .si-sess.active { border-color: var(--green); background: rgba(38,166,154,0.08); }
-  .si-sess.best-active { border-color: var(--gold); background: rgba(212,169,55,0.10); }
+  .si-sess.best-active { border-color: var(--gold); background: rgba(84,172,191,0.10); }
   .si-s-name { font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .si-s-state { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; white-space: nowrap; }
   .si-s-state.open { background: rgba(38,166,154,0.2); color: var(--green); }
-  .si-s-state.closed { background: rgba(138,138,146,0.12); color: var(--text-dim); }
+  .si-s-state.closed { background: rgba(143,182,204,0.12); color: var(--text-dim); }
   .si-s-time { font-size: 10px; color: var(--text-dim); margin-top: 3px; font-variant-numeric: tabular-nums; }
   .si-s-cd { font-size: 10px; color: var(--gold-bright); margin-top: 1px; font-variant-numeric: tabular-nums; }
   .si-best {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    background: rgba(212,169,55,0.07); border: 1px dashed rgba(212,169,55,0.4);
+    background: rgba(84,172,191,0.07); border: 1px dashed rgba(84,172,191,0.4);
     border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;
   }
   .si-best .sb-main { flex: 1; min-width: 220px; }
@@ -990,10 +992,10 @@
         <div class="panel-header">
           <span>XAU/USD — Analysis</span>
           <div class="legend">
-            <div class="legend-item"><div class="legend-swatch" style="background:#42a5f5"></div>SMA20</div>
-            <div class="legend-item"><div class="legend-swatch" style="background:#ffa726"></div>EMA50</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#54acbf"></div>SMA20</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#8fd9e8"></div>EMA50</div>
             <div class="legend-item"><div class="legend-swatch" style="background:#ef5350"></div>EMA200</div>
-            <div class="legend-item" id="sweepLegend" style="display:none;color:#ff9f43">Sweeps</div>
+            <div class="legend-item" id="sweepLegend" style="display:none;color:#a7ebf2">Sweeps</div>
           </div>
         </div>
         <div class="chart-container"><div id="priceChart"></div></div>
@@ -1024,8 +1026,8 @@
       <div class="panel-header">
         <span>MACD (12, 26, 9)</span>
         <div class="legend">
-          <div class="legend-item"><div class="legend-swatch" style="background:#42a5f5"></div>MACD</div>
-          <div class="legend-item"><div class="legend-swatch" style="background:#ffa726"></div>Signal</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#54acbf"></div>MACD</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#8fd9e8"></div>Signal</div>
           <div class="legend-item"><div class="legend-swatch" style="background:#666"></div>Histogram</div>
         </div>
       </div>
@@ -1988,26 +1990,16 @@ function parseBinanceKlines(rows) {
 
 function buildSources(tf) {
   const { interval, range } = yfInterval(tf);
-  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(location.hostname) || location.protocol === 'file:';
-  const base = isLocal ? 'http://localhost:3000' : '';
   const path = `/v8/finance/chart/${encodeURIComponent(YF_TICKER)}?interval=${interval}&range=${range}`;
   const q1 = 'https://query1.finance.yahoo.com' + path;
   const q2 = 'https://query2.finance.yahoo.com' + path;
 
   return [
-    { name: 'backend', url: `${base}/api/gold?tf=${encodeURIComponent(tf)}`, via: true, timeout: 2500,
-      parse: async resp => {
-        const data = await resp.json();
-        if (data && data.ok && Array.isArray(data.candles) && data.candles.length >= 30) return data.candles;
-        throw new Error('backend bad data');
-      } },
-    { name: 'binance-paxg', url: `https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=${binanceInterval(tf)}&limit=500`, via: false, timeout: 5000,
+    { name: 'binance-paxg', url: `https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=${binanceInterval(tf)}&limit=500`, via: false, timeout: 6000,
       parse: async resp => parseBinanceKlines(await resp.json()) },
-    { name: 'corsproxy', url: `https://corsproxy.io/?url=${encodeURIComponent(q1)}`, via: false, timeout: 5000,
+    { name: 'yahoo-1', url: q1, via: false, timeout: 6000,
       parse: async resp => parseYFCandles(await resp.json()) },
-    { name: 'allorigins', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(q2)}`, via: false, timeout: 6500,
-      parse: async resp => parseYFCandles(await resp.json()) },
-    { name: 'codetabs', url: `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(q1)}`, via: false, timeout: 6500,
+    { name: 'yahoo-2', url: q2, via: false, timeout: 6000,
       parse: async resp => parseYFCandles(await resp.json()) },
   ];
 }
@@ -2148,24 +2140,24 @@ function commonChartOptions(height) {
   return {
     layout: {
       background: { type: 'solid', color: 'rgba(22, 22, 28, 0)' },
-      textColor: '#8a8a92',
+      textColor: '#8fb6cc',
       fontSize: 10,
     },
     grid: {
-      vertLines: { color: 'rgba(42,42,51,0.5)' },
-      horzLines: { color: 'rgba(42,42,51,0.5)' },
+      vertLines: { color: 'rgba(26,75,110,0.5)' },
+      horzLines: { color: 'rgba(26,75,110,0.5)' },
     },
     timeScale: {
-      borderColor: '#2a2a33',
+      borderColor: '#1a4b6e',
       timeVisible: true,
       secondsVisible: false,
       rightOffset: 3,
     },
-    rightPriceScale: { borderColor: '#2a2a33' },
+    rightPriceScale: { borderColor: '#1a4b6e' },
     crosshair: {
       mode: LightweightCharts.CrosshairMode.Normal,
-      vertLine: { color: '#d4a937', width: 1, style: 2, labelBackgroundColor: '#d4a937' },
-      horzLine: { color: '#d4a937', width: 1, style: 2, labelBackgroundColor: '#d4a937' },
+      vertLine: { color: '#54acbf', width: 1, style: 2, labelBackgroundColor: '#54acbf' },
+      horzLine: { color: '#54acbf', width: 1, style: 2, labelBackgroundColor: '#54acbf' },
     },
     handleScale: { axisPressedMouseMove: { time: true, price: false } },
     height,
@@ -2183,15 +2175,15 @@ function buildCharts() {
     wickUpColor: UP_COLOR, wickDownColor: DOWN_COLOR,
     priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
   });
-  const sma20Series = priceChart.addLineSeries({ color: '#42a5f5', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-  const ema50Series = priceChart.addLineSeries({ color: '#ffa726', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  const sma20Series = priceChart.addLineSeries({ color: '#54acbf', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  const ema50Series = priceChart.addLineSeries({ color: '#8fd9e8', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
   const ema200Series = priceChart.addLineSeries({ color: '#ef5350', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 
   const rsiChart = LightweightCharts.createChart(
     document.getElementById('rsiChart'),
     { ...commonChartOptions(window.innerWidth < 600 ? 100 : 120), timeScale: { ...commonChartOptions(0).timeScale, visible: false } }
   );
-  const rsiSeries = rsiChart.addLineSeries({ color: '#a67fd9', lineWidth: 2, priceLineVisible: false });
+  const rsiSeries = rsiChart.addLineSeries({ color: '#54acbf', lineWidth: 2, priceLineVisible: false });
   rsiSeries.createPriceLine({ price: 70, color: '#ef5350', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '70' });
   rsiSeries.createPriceLine({ price: 30, color: '#26a69a', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '30' });
   rsiSeries.createPriceLine({ price: 50, color: '#555', lineWidth: 1, lineStyle: 3, axisLabelVisible: false });
@@ -2200,8 +2192,8 @@ function buildCharts() {
     document.getElementById('macdChart'),
     { ...commonChartOptions(window.innerWidth < 600 ? 100 : 120), timeScale: { ...commonChartOptions(0).timeScale, visible: false } }
   );
-  const macdSeries = macdChart.addLineSeries({ color: '#42a5f5', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
-  const signalSeries = macdChart.addLineSeries({ color: '#ffa726', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  const macdSeries = macdChart.addLineSeries({ color: '#54acbf', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+  const signalSeries = macdChart.addLineSeries({ color: '#8fd9e8', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
   const histSeries = macdChart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false });
 
   state.charts = { priceChart, rsiChart, macdChart };
@@ -2288,11 +2280,11 @@ function render() {
     if (sig && sig.setup) {
       const s = sig.setup;
       sweepPriceLines.push(series.candleSeries.createPriceLine({
-        price: s.sweepLevel, color: '#ff9f43', lineWidth: 1, lineStyle: 2,
+        price: s.sweepLevel, color: '#a7ebf2', lineWidth: 1, lineStyle: 2,
         axisLabelVisible: true, title: 'Sweep level',
       }));
       sweepPriceLines.push(series.candleSeries.createPriceLine({
-        price: sig.entry, color: '#d4a937', lineWidth: 1, lineStyle: 0,
+        price: sig.entry, color: '#54acbf', lineWidth: 1, lineStyle: 0,
         axisLabelVisible: true, title: 'Entry (FVG)',
       }));
       sweepPriceLines.push(series.candleSeries.createPriceLine({
@@ -2317,7 +2309,7 @@ function render() {
     const cs = state.consensus;
     if (cs && cs.isLong !== null && cs.entry != null && cs.stop != null) {
       sweepPriceLines.push(series.candleSeries.createPriceLine({
-        price: cs.entry, color: '#d4a937', lineWidth: 1, lineStyle: 0,
+        price: cs.entry, color: '#54acbf', lineWidth: 1, lineStyle: 0,
         axisLabelVisible: true, title: 'Entry',
       }));
       sweepPriceLines.push(series.candleSeries.createPriceLine({
@@ -3566,19 +3558,9 @@ function switchChart(mode) {
 // ─── TradingView Scanner API: fetch live quote + indicator values ───
 async function fetchTVQuote() {
   const fields = 'last,close,change,change_abs,Recommend.All,RSI,MACD.macd,MACD.signal,MACD.macdaft,EMA,SMA,Volatility.D';
-  const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(location.hostname) || location.protocol === 'file:';
-  const base = isLocal ? 'http://localhost:3000' : '';
 
-  // Race backend proxy + direct scanner in parallel — first success wins
+  // Direct TradingView scanner only (no third-party proxy)
   const attempts = [
-    (async () => {
-      const resp = await fetchWithTimeout(`${base}/api/tv-quote?symbol=${encodeURIComponent(tvSymbol)}`, 3000);
-      if (!resp.ok) throw new Error('tv-backend ' + resp.status);
-      const data = await resp.json();
-      const d = data.data || data;
-      if (d && (d.last != null || d.close != null)) return d;
-      throw new Error('tv-backend no data');
-    })(),
     (async () => {
       const resp = await fetchWithTimeout(`https://scanner.tradingview.com/symbol?symbol=${encodeURIComponent(tvSymbol)}&fields=${fields}`, 5000);
       if (!resp.ok) throw new Error('tv-direct ' + resp.status);
