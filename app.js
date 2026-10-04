@@ -732,6 +732,18 @@ function adminSettings(){
       ${f("resume_url","Brochure / CV URL")}
       <button class="btn btn-primary" type="submit">Save settings</button>
     </form>
+  </div>
+  <div class="panel" style="margin-top:18px">
+    <h3 class="panel-title">Security - change your password</h3>
+    <p class="note" style="margin:0 0 16px">Your password is stored only as a one-way bcrypt hash, so nobody - including us - can read it back. Use a long passphrase of 12 characters or more.</p>
+    <div id="pwdMsg"></div>
+    <form data-form="password">
+      <div class="two-col">
+        <div class="field"><label>New password</label><input name="new_password" type="password" required minlength="12" autocomplete="new-password"></div>
+        <div class="field"><label>Confirm new password</label><input name="confirm_password" type="password" required minlength="12" autocomplete="new-password"></div>
+      </div>
+      <button class="btn btn-primary" type="submit">Update password</button>
+    </form>
   </div>`;
 }
 function loginView(){
@@ -986,6 +998,24 @@ app.addEventListener("submit", async (e) => {
       render();
       setTimeout(()=>document.getElementById("rate")?.scrollIntoView({behavior:"smooth"}), 80);
     }catch(err){ msg("rateMsg","Could not save your rating: " + err.message, "err"); }
+    return;
+  }
+
+  if(kind === "password"){
+    const np = fd.get("new_password") || "";
+    const cp = fd.get("confirm_password") || "";
+    if(np.length < 12){ msg("pwdMsg", "Please use at least 12 characters.", "err"); return; }
+    if(np !== cp){ msg("pwdMsg", "The two passwords do not match.", "err"); return; }
+    try{
+      await ensureSession();
+      await authReq("/user", {
+        method:"PUT",
+        headers:{ Authorization: "Bearer " + ((state.session && state.session.access_token) || "") },
+        body: JSON.stringify({ password: np }),
+      });
+      form.reset();
+      msg("pwdMsg", "Password updated. It is now stored as a fresh bcrypt hash - use the new one next time you sign in.", "ok");
+    }catch(err){ msg("pwdMsg", "Could not update the password: " + err.message, "err"); }
     return;
   }
 
